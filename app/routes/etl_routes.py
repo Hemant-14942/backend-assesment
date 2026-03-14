@@ -11,15 +11,16 @@ from ..etl_pipeline import run_etl
 router = APIRouter(prefix="/etl", tags=["ETL"])
 
 @router.post("/run")
-def trigger_etl_run(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def trigger_etl_run(
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db),
+    use_mock: bool = False  # Allows you to toggle mock data in Swagger UI
+):
     """
-    POST /etl/run: Creates a job record and runs the pipeline.
-    Requirement: 5. Job Status API + Run ETL Job
+    POST /etl/run: Creates a job record and runs the pipeline. [cite: 156]
     """
-    # 1. Create a unique Job ID (Requirement: job_id UUID)
-    job_id = uuid.uuid4()
+    job_id = uuid.uuid4() # Requirement: job_id UUID [cite: 132]
     
-    # 2. Create the initial ETL job record (Requirement: Track each ETL run)
     new_job = ETLJob(
         job_id=job_id,
         status="running",
@@ -28,15 +29,13 @@ def trigger_etl_run(background_tasks: BackgroundTasks, db: Session = Depends(get
     db.add(new_job)
     db.commit()
 
-    # 3. Define the actual work to be done
     def etl_task():
-        # Create a new session for the background thread
         from ..database import SessionLocal
         inner_db = SessionLocal()
         try:
-            records, error = run_etl(inner_db, str(job_id))
+            # Pass the use_mock flag down to the pipeline logic
+            records, error = run_etl(inner_db, str(job_id), use_mock=use_mock)
             
-            # Update the job record upon completion (Requirement: Update job status)
             job = inner_db.query(ETLJob).filter(ETLJob.job_id == job_id).first()
             if error:
                 job.status = "failed"
@@ -50,10 +49,11 @@ def trigger_etl_run(background_tasks: BackgroundTasks, db: Session = Depends(get
         finally:
             inner_db.close()
 
-    # 4. Run the ETL in the background so the API doesn't hang (Best Practice)
     background_tasks.add_task(etl_task)
 
     return {"job_id": str(job_id), "status": "running"}
+  
+     
 
 @router.get("/jobs", response_model=list[ETLJobSchema])
 def get_etl_jobs(db: Session = Depends(get_db)):

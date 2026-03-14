@@ -14,39 +14,45 @@ logger = logging.getLogger(__name__)
 
 # Source URLs from assignment
 COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1"
-# Path relative to project root (robust regardless of cwd)
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "crypto_metadata.csv"
 
 @retry_with_backoff(retries=3)
 def fetch_api_data():
     """EXTRACT: Fetch data from Public API (Requirement: Source 1)"""
     response = requests.get(COINGECKO_URL)
-    response.raise_for_status() # Raises error for 4xx/5xx to trigger retry
+    response.raise_for_status() 
     return response.json()
 
-def run_etl(db: Session, job_id: str):
-    """The main ETL Pipeline execution logic"""
+def run_etl(db: Session, job_id: str, use_mock: bool = False):
+    """The main ETL Pipeline execution logic with a demo mock toggle"""
     try:
-        # 1. EXTRACT
-        api_data = fetch_api_data()
-        df_metadata = pd.read_csv(str(CSV_PATH))
+        # 1. EXTRACT [cite: 58]
+        if use_mock:
+            logger.info("Manual Mock Triggered: Bypassing CoinGecko API for demo")
+            api_data = [
+                {"symbol": "btc", "name": "Bitcoin", "current_price": 65000.0, "market_cap": 1200000000000, "price_change_percentage_24h": -1.5},
+                {"symbol": "eth", "name": "Ethereum", "current_price": 3500.0, "market_cap": 400000000000, "price_change_percentage_24h": 2.1},
+                {"symbol": "bnb", "name": "BNB", "current_price": 580.0, "market_cap": 88000000000, "price_change_percentage_24h": 0.8},
+                {"symbol": "sol", "name": "Solana", "current_price": 145.0, "market_cap": 65000000000, "price_change_percentage_24h": 3.2},
+            ]
+        else:
+            api_data = fetch_api_data() # [cite: 59]
+            
+        df_metadata = pd.read_csv(str(CSV_PATH)) # [cite: 60]
 
-        # 2. TRANSFORM
-        # Convert API list to DataFrame
+        # 2. TRANSFORM [cite: 61]
         df_api = pd.DataFrame(api_data)
         
-        # Normalize: Handle Case Mismatch (BTC vs btc) - Requirement: Case Mismatch
+        # Normalize fields (Requirement: Case Mismatch) [cite: 64, 80]
         df_api['symbol'] = df_api['symbol'].str.lower()
         df_metadata['symbol'] = df_metadata['symbol'].str.lower()
 
-        # Merge datasets using 'symbol' - Requirement: Merge datasets
-        # 'left' join ensures we keep all API data even if metadata is missing
+        # Merge datasets using 'symbol' [cite: 62, 63]
         merged_df = pd.merge(df_api, df_metadata, on='symbol', how='left')
 
-        # 3. LOAD (with Idempotency/UPSERT) - Requirement: 1. Idempotent ETL
+        # 3. LOAD (Idempotent UPSERT) [cite: 82, 99, 102]
         records_count = 0
         for _, row in merged_df.iterrows():
-            # Prepare the data dictionary
             data = {
                 "symbol": row['symbol'],
                 "name": row['name'],
@@ -59,10 +65,12 @@ def run_etl(db: Session, job_id: str):
                 "last_updated": datetime.utcnow()
             }
 
-            # PostgreSQL UPSERT logic: Insert or Update on Conflict
+            # Log each record being processed for observability 
+            logger.info(f"Processing UPSERT for symbol: {data['symbol']}")
+
             stmt = insert(CryptoAsset).values(data)
             stmt = stmt.on_conflict_do_update(
-                index_elements=['symbol'], # Requirement: ON CONFLICT (symbol)
+                index_elements=['symbol'], # [cite: 106]
                 set_=data
             )
             db.execute(stmt)
@@ -73,5 +81,6 @@ def run_etl(db: Session, job_id: str):
 
     except Exception as e:
         db.rollback()
-        logger.exception("ETL pipeline failed: %s", e)
+        # Logging of ETL failures 
+        logger.error(f"ETL pipeline job {job_id} failed: {str(e)}")
         return 0, str(e)
