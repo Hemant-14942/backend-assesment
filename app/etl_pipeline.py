@@ -1,14 +1,21 @@
+import logging
+from pathlib import Path
+
 import pandas as pd
 import requests
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from datetime import datetime
+
 from .models import CryptoAsset, ETLJob
 from .retry_utils import retry_with_backoff
 
+logger = logging.getLogger(__name__)
+
 # Source URLs from assignment
 COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1"
-CSV_PATH = "data/crypto_metadata.csv"
+# Path relative to project root (robust regardless of cwd)
+CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "crypto_metadata.csv"
 
 @retry_with_backoff(retries=3)
 def fetch_api_data():
@@ -22,7 +29,7 @@ def run_etl(db: Session, job_id: str):
     try:
         # 1. EXTRACT
         api_data = fetch_api_data()
-        df_metadata = pd.read_csv(CSV_PATH)
+        df_metadata = pd.read_csv(str(CSV_PATH))
 
         # 2. TRANSFORM
         # Convert API list to DataFrame
@@ -47,7 +54,7 @@ def run_etl(db: Session, job_id: str):
                 "market_cap": row['market_cap'],
                 "price_change_24h": row['price_change_percentage_24h'],
                 "category": row.get('category'),
-                "founding_year": row.get('founding_year') if pd.notnull(row.get('founding_year')) else None,
+                "founding_year": int(row["founding_year"]) if pd.notnull(row.get("founding_year")) else None,
                 "origin_country": row.get('origin_country'),
                 "last_updated": datetime.utcnow()
             }
@@ -66,4 +73,5 @@ def run_etl(db: Session, job_id: str):
 
     except Exception as e:
         db.rollback()
+        logger.exception("ETL pipeline failed: %s", e)
         return 0, str(e)

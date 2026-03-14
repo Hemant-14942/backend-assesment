@@ -10,6 +10,6 @@ A production-ready ETL pipeline built with **FastAPI**, **PostgreSQL**, and **SQ
 - **Observability**: Job lineage tracking via the `etl_jobs` table.
 
 ## Setup
-1. Install dependencies: `uv sync`
+1. Install dependencies: `pip install -r requirements.txt` or `uv sync`
 2. Configure `.env` with your `DATABASE_URL`.
-3. Run the server: `uv run uvicorn app.main:app --reload`
+3. Run the server: `uvicorn app.main:app --reload` or `uv run uvicorn app.main:app --reload`

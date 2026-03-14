@@ -5,6 +5,7 @@ import uuid
 
 from ..database import get_db
 from ..models import ETLJob
+from ..schemas import ETLJobSchema
 from ..etl_pipeline import run_etl
 
 router = APIRouter(prefix="/etl", tags=["ETL"])
@@ -54,7 +55,7 @@ def trigger_etl_run(background_tasks: BackgroundTasks, db: Session = Depends(get
 
     return {"job_id": str(job_id), "status": "running"}
 
-@router.get("/jobs")
+@router.get("/jobs", response_model=list[ETLJobSchema])
 def get_etl_jobs(db: Session = Depends(get_db)):
     """
     GET /etl/jobs: Returns history of ETL runs.
