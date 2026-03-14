@@ -1,0 +1,62 @@
+# Python / FastAPI / Uvicorn
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments (incl. uv-created)
+.venv/
+venv/
+ENV/
+.env/
+.env.*
+!.env.example
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Unit test / coverage / type check / lint caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Local databases / SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# uv
+# Keep uv.lock committed (do NOT ignore it)
+.uv/
+
+# dotenv / secrets
+*.pem
+*.key
+*.crt
+
+# Terraform / IaC (if added later)
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Node (if added later)
+node_modules/
