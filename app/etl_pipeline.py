@@ -26,7 +26,7 @@ def fetch_api_data():
 def run_etl(db: Session, job_id: str, use_mock: bool = False):
     """The main ETL Pipeline execution logic with a demo mock toggle"""
     try:
-        # 1. EXTRACT [cite: 58]
+        # 1. EXTRACT 
         if use_mock:
             logger.info("Manual Mock Triggered: Bypassing CoinGecko API for demo")
             api_data = [
@@ -36,21 +36,21 @@ def run_etl(db: Session, job_id: str, use_mock: bool = False):
                 {"symbol": "sol", "name": "Solana", "current_price": 145.0, "market_cap": 65000000000, "price_change_percentage_24h": 3.2},
             ]
         else:
-            api_data = fetch_api_data() # [cite: 59]
+            api_data = fetch_api_data() 
             
-        df_metadata = pd.read_csv(str(CSV_PATH)) # [cite: 60]
+        df_metadata = pd.read_csv(str(CSV_PATH))
 
-        # 2. TRANSFORM [cite: 61]
+        # 2. TRANSFORM 
         df_api = pd.DataFrame(api_data)
         
-        # Normalize fields (Requirement: Case Mismatch) [cite: 64, 80]
+        # Normalize fields (Requirement: Case Mismatch) 
         df_api['symbol'] = df_api['symbol'].str.lower()
         df_metadata['symbol'] = df_metadata['symbol'].str.lower()
 
-        # Merge datasets using 'symbol' [cite: 62, 63]
+        # Merge datasets using 'symbol' 
         merged_df = pd.merge(df_api, df_metadata, on='symbol', how='left')
 
-        # 3. LOAD (Idempotent UPSERT) [cite: 82, 99, 102]
+        # 3. LOAD (Idempotent UPSERT)
         records_count = 0
         for _, row in merged_df.iterrows():
             data = {
@@ -70,7 +70,7 @@ def run_etl(db: Session, job_id: str, use_mock: bool = False):
 
             stmt = insert(CryptoAsset).values(data)
             stmt = stmt.on_conflict_do_update(
-                index_elements=['symbol'], # [cite: 106]
+                index_elements=['symbol'], 
                 set_=data
             )
             db.execute(stmt)
