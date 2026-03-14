@@ -9,8 +9,14 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Create the SQLAlchemy engine [cite: 210]
-engine = create_engine(DATABASE_URL)
+# Create the SQLAlchemy engine with options for cloud DBs (e.g. Neon).
+# pool_pre_ping: test connection before use so stale/closed SSL connections are replaced.
+# pool_recycle: recycle connections before server idle timeout closes them.
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
 
 # Create a SessionLocal class for database individual sessions 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
